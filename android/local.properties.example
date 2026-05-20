@@ -1,0 +1,13 @@
+## Location of the Android SDK. Skopiuj ten plik jako local.properties i ustaw ścieżkę!
+## This file must *NOT* be checked into Version Control Systems,
+## as it contains information specific to your local installation.
+##
+## Location of the SDK. This is only used by Gradle.
+## For customization when using a Version Control System, please read the
+## header note.
+
+## Przykład dla Windows - ZMIEŃ NA SWOJĄ ŚCIEŻKĘ:
+# sdk.dir=C\:\\Users\\TwojaNazwaUzytkownika\\AppData\\Local\\Android\\Sdk
+
+## Przykład dla WSL/Linux:
+# sdk.dir=/home/user/Android/Sdk

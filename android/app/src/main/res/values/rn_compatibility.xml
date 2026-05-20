@@ -1,0 +1,3 @@
+<resources>
+    <item name="rn_edit_text_material" type="drawable">@android:drawable/edit_text</item>
+</resources>
