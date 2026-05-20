@@ -36,7 +36,7 @@ A React Native Android app that provides a mobile GUI for Kali Linux penetration
 
 ```bash
 git clone https://github.com/notconnector/kali-mobile-gui.git
-cd fsociety
+cd kali-mobile-gui
 ```
 
 ### 2. Install dependencies
