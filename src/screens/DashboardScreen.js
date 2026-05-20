@@ -126,8 +126,8 @@ export default function DashboardScreen({navigation}) {
         ) : (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>KATEGORIE NARZĘDZI</Text>
-              <Text style={styles.sectionCount}>{CATEGORIES.length} kategorii</Text>
+              <Text style={styles.sectionTitle}>TOOL CATEGORIES</Text>
+              <Text style={styles.sectionCount}>{CATEGORIES.length} categories</Text>
             </View>
             {CATEGORIES.map(category => (
               <CategoryCard

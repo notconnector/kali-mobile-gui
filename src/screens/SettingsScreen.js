@@ -3,57 +3,55 @@ import {
   View, Text, StyleSheet, ScrollView, TextInput,
   TouchableOpacity, SafeAreaView, StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {colors, fontSizes, spacing, radius} from '../theme';
 import {useApp} from '../context/AppContext';
-const DEFAULT_SSH_CONFIG = {
-  host: '',
-  port: 22,
-  username: '',
-  password: '',
-};
+import SSHManager from '../utils/SSHManager';
 
 export default function SettingsScreen() {
-  const {connect, disconnect, saveConfig} = useApp();
+  const {connect, disconnect, saveConfig, isConnected, isConnecting, connectionError, sshConfig} = useApp();
   const [host, setHost] = useState('');
   const [port, setPort] = useState('22');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [sshConfig, setSshConfig] = useState(DEFAULT_SSH_CONFIG);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('');
-  const [connectionError, setConnectionError] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
   useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const savedConfig = await AsyncStorage.getItem('ssh_config');
-      if (savedConfig) {
-        setSshConfig(JSON.parse(savedConfig));
-      }
-    } catch (e) {
-      console.error('Error loading settings:', e);
+    if (sshConfig) {
+      setHost(sshConfig.host || '');
+      setPort(String(sshConfig.port || 22));
+      setUsername(sshConfig.username || '');
+      setPassword(sshConfig.password || '');
     }
-  };
+  }, [sshConfig]);
+
+  const buildConfig = () => ({
+    host: host.trim(),
+    port: parseInt(port, 10) || 22,
+    wsPort: 8765,
+    username: username.trim(),
+    password,
+  });
 
   const handleSave = async () => {
-    const config = {host: host.trim(), port: parseInt(port, 10) || 22, username: username.trim(), password};
-    await saveConfig(config);
+    if (!host.trim()) {
+      Alert.alert('Error', 'Host / IP address is required.');
+      return;
+    }
+    await saveConfig(buildConfig());
     Alert.alert('Saved', 'SSH configuration saved.', [{text: 'OK'}]);
   };
 
   const handleConnect = async () => {
-    const config = {host: host.trim(), port: parseInt(port, 10) || 22, username: username.trim(), password};
+    if (!host.trim()) {
+      Alert.alert('Error', 'Enter a host / IP address first.');
+      return;
+    }
+    const config = buildConfig();
     await saveConfig(config);
     const ok = await connect(config);
     if (ok) {
-      Alert.alert('Connected!', `Connected to ${host}:${port} as ${username}`);
+      Alert.alert('Connected!', `Connected to ${config.host}:${config.port} as ${config.username}`);
     }
   };
 
@@ -62,11 +60,13 @@ export default function SettingsScreen() {
   };
 
   const handleTest = async () => {
-    setTestResult({status: 'testing', message: 'Testing...'});
-    const config = {host: host.trim(), port: parseInt(port, 10) || 22, username: username.trim(), password};
+    if (!host.trim()) {
+      setTestResult({status: 'error', message: '✗ Enter a host / IP address first.'});
+      return;
+    }
+    setTestResult({status: 'testing', message: 'Testing connection...'});
     try {
-      const {default: SSHManager} = require('../utils/SSHManager');
-      await SSHManager.connect(config);
+      await SSHManager.connect(buildConfig());
       const output = await SSHManager.execute('echo "OK:$(uname -n):$(whoami)"');
       setTestResult({status: 'ok', message: `✓ Connected! ${output.trim()}`});
     } catch (e) {

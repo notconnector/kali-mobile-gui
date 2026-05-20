@@ -7,9 +7,9 @@ export default function ConnectionBadge({onPress}) {
   const {isConnected, isConnecting, connectionError} = useApp();
 
   const getStatus = () => {
-    if (isConnecting) return {label: 'ŁĄCZENIE...', color: colors.warning, pulse: true};
-    if (isConnected) return {label: 'POŁĄCZONO', color: colors.primary, pulse: false};
-    return {label: 'ROZŁĄCZONO', color: colors.error, pulse: false};
+    if (isConnecting) return {label: 'CONNECTING...', color: colors.warning, pulse: true};
+    if (isConnected) return {label: 'CONNECTED', color: colors.primary, pulse: false};
+    return {label: 'DISCONNECTED', color: colors.error, pulse: false};
   };
 
   const status = getStatus();
