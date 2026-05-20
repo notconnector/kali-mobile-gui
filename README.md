@@ -1,4 +1,4 @@
-# fsociety — Kali Linux Mobile GUI
+# Kali Linux Mobile GUI
 
 A React Native Android app that provides a mobile GUI for Kali Linux penetration testing tools, connected via WebSocket bridge over SSH.
 
