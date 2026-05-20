@@ -2,7 +2,7 @@
 
 A React Native Android app that provides a mobile GUI for Kali Linux penetration testing tools, connected via WebSocket bridge over SSH.
 
-![fsociety](../icons8-fsociety-mask-200.png)
+![fsociety](icons8-fsociety-mask-200.png)
 
 ---
 
@@ -35,7 +35,7 @@ A React Native Android app that provides a mobile GUI for Kali Linux penetration
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/fsociety.git
+git clone https://github.com/notconnector/kali-mobile-gui.git
 cd fsociety
 ```
 
@@ -74,45 +74,6 @@ cd android && ./gradlew assembleRelease
 ```
 
 APK output: `android/app/build/outputs/apk/release/app-release.apk`
-
----
-
-## Project Structure
-
-```
-fsociety/
-├── src/
-│   ├── assets/          # Images
-│   ├── components/      # Reusable components
-│   ├── config/          # Default config (no credentials)
-│   ├── context/         # App state (AppContext)
-│   ├── data/            # Tool definitions (130+ tools)
-│   ├── screens/         # App screens
-│   ├── theme/           # Colors, fonts, spacing
-│   └── utils/           # SSHManager (WebSocket)
-├── android/             # Android native project
-├── kali-bridge.py       # WebSocket bridge for Kali
-└── App.js               # Root navigation
-```
-
----
-
-## Tool Categories
-
-| Category | Tools |
-|---|---|
-| Recon | nmap, masscan, whatweb, dnsenum... |
-| Exploitation | metasploit, sqlmap, hydra... |
-| Post-Exploitation | mimikatz, empire, linpeas... |
-| Password | hashcat, john, crunch... |
-| Wireless | aircrack-ng, wifite, hostapd-wpe... |
-| Web | burpsuite, nikto, gobuster, dirb... |
-| OSINT | maltego, theharvester, sherlock... |
-| Forensics | autopsy, volatility, binwalk... |
-| Sniffing | wireshark, tcpdump, responder... |
-| Social Eng. | setoolkit, gophish... |
-| Crypto | openssl, gpg, hashid... |
-| Misc | netcat, socat, proxychains... |
 
 ---
 
