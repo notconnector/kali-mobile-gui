@@ -14,6 +14,7 @@ import CategoryScreen from './src/screens/CategoryScreen';
 import ToolScreen from './src/screens/ToolScreen';
 import ToolDetailScreen from './src/screens/ToolDetailScreen';
 import ToolsLibraryScreen from './src/screens/ToolsLibraryScreen';
+import AddToolScreen from './src/screens/AddToolScreen';
 import TerminalScreen from './src/screens/TerminalScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -30,6 +31,7 @@ function DashboardStack() {
       <DashStack.Screen name="ToolsLibrary" component={ToolsLibraryScreen} />
       <DashStack.Screen name="Tool" component={ToolScreen} />
       <DashStack.Screen name="ToolDetail" component={ToolDetailScreen} />
+      <DashStack.Screen name="AddTool" component={AddToolScreen} />
     </DashStack.Navigator>
   );
 }

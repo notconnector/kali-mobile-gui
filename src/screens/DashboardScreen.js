@@ -35,7 +35,7 @@ export default function DashboardScreen({navigation}) {
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
             <Image source={require('../assets/fsociety-mask.png')} style={styles.maskIcon} resizeMode="contain" />
-            <Text style={styles.headerTitle}>Hello Friend.</Text>
+            <Text style={styles.headerTitle}>Kali GUI.</Text>
           </View>
           <ConnectionBadge onPress={handleConnectionToggle} />
         </View>

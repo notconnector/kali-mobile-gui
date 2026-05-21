@@ -6,9 +6,11 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import {colors, fontSizes, spacing, radius} from '../theme';
 import {getToolsByCategory} from '../data';
+import {useApp} from '../context/AppContext';
 
 export default function CategoryScreen({route, navigation}) {
   const {category} = route.params;
+  const {customTools, deleteCustomTool} = useApp();
 
   // Special handling for library category
   if (category.id === 'library') {
@@ -17,7 +19,8 @@ export default function CategoryScreen({route, navigation}) {
   }
 
   const [search, setSearch] = useState('');
-  const allTools = getToolsByCategory(category.id);
+  const isCustom = category.id === 'custom';
+  const allTools = isCustom ? customTools : getToolsByCategory(category.id);
   const tools = search.trim()
     ? allTools.filter(t =>
         t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -43,11 +46,19 @@ export default function CategoryScreen({route, navigation}) {
         </View>
         <Text style={styles.toolDesc} numberOfLines={2}>{tool.description}</Text>
         <View style={styles.toolFooter}>
-          <Text style={styles.flagCount}>{tool.flags.length} flag</Text>
+          <Text style={styles.flagCount}>{(tool.flags || []).length} flags</Text>
           {tool.hasTarget && (
             <View style={styles.targetBadge}>
               <Text style={styles.targetBadgeText}>🎯 requires target</Text>
             </View>
+          )}
+          {isCustom && (
+            <TouchableOpacity
+              onPress={() => deleteCustomTool(tool.id)}
+              hitSlop={{top:8,bottom:8,left:8,right:8}}
+              style={styles.deleteToolBtn}>
+              <Text style={styles.deleteToolText}>🗑</Text>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -73,9 +84,15 @@ export default function CategoryScreen({route, navigation}) {
           </View>
         </View>
         <View style={[styles.statsBar, {borderColor: category.color + '33'}]}>
-          <Text style={[styles.statsText, {color: category.color}]}>{tools.length} tools</Text>
-          <View style={[styles.statsDot, {backgroundColor: category.color}]} />
-          <Text style={styles.statsTextDim}>{category.nameEn}</Text>
+          <Text style={[styles.statsText, {color: category.color}]}>{allTools.length} tools</Text>
+          {isCustom && (
+            <TouchableOpacity
+              style={[styles.addToolBtn, {backgroundColor: category.color + '22', borderColor: category.color + '55'}]}
+              onPress={() => navigation.navigate('AddTool')}
+              activeOpacity={0.8}>
+              <Text style={[styles.addToolBtnText, {color: category.color}]}>+ Add tool</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </LinearGradient>
 
@@ -107,8 +124,16 @@ export default function CategoryScreen({route, navigation}) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>🔍</Text>
-            <Text style={styles.emptyText}>No tools found</Text>
+            <Text style={styles.emptyIcon}>{isCustom ? '🔧' : '🔍'}</Text>
+            <Text style={styles.emptyText}>{isCustom ? 'No custom tools yet' : 'No tools found'}</Text>
+            {isCustom && (
+              <TouchableOpacity
+                style={styles.emptyAddBtn}
+                onPress={() => navigation.navigate('AddTool')}
+                activeOpacity={0.8}>
+                <Text style={styles.emptyAddBtnText}>+ Add your first tool</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -232,4 +257,23 @@ const styles = StyleSheet.create({
   empty: {alignItems: 'center', paddingVertical: 60},
   emptyIcon: {fontSize: 40, marginBottom: spacing.md},
   emptyText: {color: colors.textDim, fontSize: fontSizes.md},
+  emptyAddBtn: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.primary + '20',
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary + '55',
+  },
+  emptyAddBtnText: {color: colors.primary, fontSize: fontSizes.md, fontWeight: '700'},
+  addToolBtn: {
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+  },
+  addToolBtnText: {fontSize: fontSizes.xs, fontWeight: '700'},
+  deleteToolBtn: {marginLeft: 'auto'},
+  deleteToolText: {fontSize: 16},
 });

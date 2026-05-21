@@ -13,6 +13,7 @@ const initialState = {
   history: [],
   terminalLines: [],
   activeCommand: null,
+  customTools: [],
 };
 
 function reducer(state, action) {
@@ -37,6 +38,12 @@ function reducer(state, action) {
       return {...state, terminalLines: []};
     case 'SET_ACTIVE_COMMAND':
       return {...state, activeCommand: action.payload};
+    case 'SET_CUSTOM_TOOLS':
+      return {...state, customTools: action.payload};
+    case 'ADD_CUSTOM_TOOL':
+      return {...state, customTools: [...state.customTools, action.payload]};
+    case 'DELETE_CUSTOM_TOOL':
+      return {...state, customTools: state.customTools.filter(t => t.id !== action.payload)};
     default:
       return state;
   }
@@ -47,6 +54,7 @@ export function AppProvider({children}) {
 
   useEffect(() => {
     loadConfig();
+    loadCustomTools();
 
     const offConnected = SSHManager.on('connected', () => {
       dispatch({type: 'SET_CONNECTED', payload: true});
@@ -77,6 +85,15 @@ export function AppProvider({children}) {
         dispatch({type: 'SET_CONFIG', payload: config});
       } else {
         dispatch({type: 'SET_CONFIG', payload: SSHManager.getConfig()});
+      }
+    } catch (e) {}
+  };
+
+  const loadCustomTools = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('custom_tools');
+      if (stored) {
+        dispatch({type: 'SET_CUSTOM_TOOLS', payload: JSON.parse(stored)});
       }
     } catch (e) {}
   };
@@ -140,6 +157,21 @@ export function AppProvider({children}) {
     await AsyncStorage.setItem('ssh_config', JSON.stringify(config));
   }, []);
 
+  const addCustomTool = useCallback(async tool => {
+    const newTool = {...tool, id: `custom_${Date.now()}`, category: 'custom', addedAt: new Date().toISOString()};
+    dispatch({type: 'ADD_CUSTOM_TOOL', payload: newTool});
+    const updated = [...(await AsyncStorage.getItem('custom_tools').then(s => s ? JSON.parse(s) : [])), newTool];
+    await AsyncStorage.setItem('custom_tools', JSON.stringify(updated));
+    return newTool;
+  }, []);
+
+  const deleteCustomTool = useCallback(async toolId => {
+    dispatch({type: 'DELETE_CUSTOM_TOOL', payload: toolId});
+    const stored = await AsyncStorage.getItem('custom_tools');
+    const tools = stored ? JSON.parse(stored) : [];
+    await AsyncStorage.setItem('custom_tools', JSON.stringify(tools.filter(t => t.id !== toolId)));
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -148,6 +180,8 @@ export function AppProvider({children}) {
         disconnect,
         executeCommand,
         saveConfig,
+        addCustomTool,
+        deleteCustomTool,
         dispatch,
       }}>
       {children}

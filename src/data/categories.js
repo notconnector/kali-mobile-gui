@@ -129,4 +129,14 @@ export const CATEGORIES = [
     description: 'Document pentest findings and manage vulnerabilities.',
     toolCount: 4,
   },
+  {
+    id: 'custom',
+    name: 'Custom Tools',
+    icon: '🔧',
+    color: '#FF9800',
+    gradientStart: '#3E2000',
+    gradientEnd: '#1A0E00',
+    description: 'Your own tools — add any command, auto-detect flags from --help output.',
+    toolCount: 0,
+  },
 ];
