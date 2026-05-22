@@ -112,14 +112,14 @@ CRITICAL_DANGEROUS_PATTERNS = [
     r'chpasswd\s+',  # Password changes
     r'user(add|del|mod)\s+',  # User management
     r'chmod\s+777',  # Dangerous permissions
-    r'chown\s+root', # Ownership changes
-    r'mount\s+',     # Mount operations
-    r'umount\s+',    # Unmount operations
+    r'chown\s+root',  # Ownership changes
+    r'mount\s+',      # Mount operations
+    r'umount\s+',     # Unmount operations
     r'iptables\s+',  # Firewall changes
-    r'ufw\s+',       # Firewall changes
-    r'firewalld\s+', # Firewall changes
-    r'service\s+',   # Service management
-    r'systemctl\s+', # Systemd management
+    r'ufw\s+',        # Firewall changes
+    r'firewalld\s+',  # Firewall changes
+    r'service\s+',    # Service management
+    r'systemctl\s+',  # Systemd management
     r'init\s+',      # Init system
     r'crontab\s+',   # Cron management
     r'at\s+',        # At scheduler
@@ -133,7 +133,7 @@ CRITICAL_DANGEROUS_PATTERNS = [
     r'ruby\s+-e',    # Ruby code execution
     r'eval\s+',      # Eval execution
     r'exec\s+',      # Exec execution
-    r'\bsource\s+', # Source execution
+    r'\bsource\s+',  # Source execution
     r'\.$',          # Source execution
     r'>>\s+/',       # Redirect to system files
     r'>\s+/',        # Redirect to system files
@@ -163,7 +163,7 @@ CRITICAL_BLACKLIST = [
     r'init\s+0',             # Shutdown to runlevel 0
     r'kill\s+-9\s+1',       # Kill init process
     r'>\s+/dev/sd',          # Direct write to disk
-    r'echo\s+.*>\s+/dev/sd', # Echo to disk
+    r'echo\s+.*>\s+/dev/sd',  # Echo to disk
 ]
 
 
@@ -214,29 +214,29 @@ async def authenticate(websocket: WebSocketServerProtocol, message: dict) -> boo
 def validate_command(command: str, is_shell_mode: bool = False) -> Tuple[bool, str]:
     """
     Validate command against whitelist and dangerous patterns.
-    
+
     Args:
         command: Command to validate
         is_shell_mode: True if running in interactive shell (allows more patterns)
-    
+
     Returns:
         Tuple of (is_safe, error_message)
     """
     command = command.strip()
     if not command:
         return False, "Empty command"
-    
+
     # Check critical blacklist (never allowed, even in shell)
     for pattern in CRITICAL_BLACKLIST:
         if re.search(pattern, command, re.IGNORECASE):
             logger.critical(f"CRITICAL: Blacklisted command blocked: {command[:100]} - {pattern}")
             return False, f"CRITICAL: Absolutely forbidden command: {pattern}"
-    
+
     # Check critical dangerous patterns (always blocked)
     for pattern in CRITICAL_DANGEROUS_PATTERNS:
         if re.search(pattern, command, re.IGNORECASE):
             return False, f"Critical dangerous pattern detected: {pattern}"
-    
+
     # Check suspicious patterns (warn in shell, block in exec)
     for pattern in SUSPICIOUS_PATTERNS:
         if re.search(pattern, command, re.IGNORECASE):
@@ -245,29 +245,29 @@ def validate_command(command: str, is_shell_mode: bool = False) -> Tuple[bool, s
                 return True, ""  # Allow in shell with warning
             else:
                 return False, f"Suspicious pattern not allowed in exec mode: {pattern}"
-    
+
     # Parse command safely
     try:
         args = shlex.split(command)
     except ValueError as e:
         return False, f"Command parsing failed: {e}"
-    
+
     if not args:
         return False, "No command found"
-    
+
     base_command = args[0]
-    
+
     # Check if command is in whitelist
     if base_command not in ALLOWED_COMMANDS:
         return False, f"Command '{base_command}' not in allowed list"
-    
+
     # Additional safety checks
     if len(args) > 20:  # Reasonable argument limit
         return False, "Too many arguments"
-    
+
     if len(command) > 1000:  # Reasonable command length
         return False, "Command too long"
-    
+
     return True, ""
 
 async def run_command(
@@ -291,11 +291,11 @@ async def run_command(
     if not is_safe:
         logger.warning(f"Blocked command: {command[:100]} - {error_msg}")
         return f"[BLOCKED] {error_msg}"
-    
+
     try:
         # Parse command safely
         args = shlex.split(command)
-        
+
         # Execute without shell
         proc = await asyncio.create_subprocess_exec(
             *args,
@@ -419,7 +419,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                         "output": ""
                     }))
                     continue
-                
+
                 # Check shell limit
                 if client_shell_counts[client_id] >= MAX_SHELLS_PER_CLIENT:
                     await websocket.send(json.dumps({
@@ -432,10 +432,10 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                 is_restricted = msg_type == "shell_start_restricted"
                 shell_cmd = RESTRICTED_SHELL_COMMAND if is_restricted else "/bin/bash"
                 logger.info(f"Starting {'restricted' if is_restricted else 'full'} PTY shell for {client_addr}")
-                
+
                 # Create PTY for proper terminal support
                 master_fd, slave_fd = pty.openpty()
-                
+
                 try:
                     shell_proc = await asyncio.create_subprocess_exec(
                         shell_cmd,
@@ -452,11 +452,11 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                     
                     # Close slave FD in parent process
                     os.close(slave_fd)
-                    
+
                     async def read_shell():
                         """Read PTY output and stream to client."""
                         loop = asyncio.get_event_loop()
-                        
+
                         try:
                             while True:
                                 try:
@@ -474,10 +474,10 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                                         }))
                                     except websockets.exceptions.ConnectionClosed:
                                         break
-                                        
+
                                     # Add small yield to prevent executor spam
                                     await asyncio.sleep(0)
-                                        
+
                                 except OSError:
                                     if shell_proc.returncode is not None:
                                         break
@@ -485,13 +485,13 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                                 except Exception as e:
                                     logger.error(f"PTY read error: {e}")
                                     break
-                                    
+
                         finally:
                             # Centralized PTY cleanup
                             await cleanup_pty(client_id, master_fd)
 
                     asyncio.ensure_future(read_shell())
-                    
+
                 except Exception as e:
                     # Cleanup on error
                     try:
@@ -516,7 +516,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                     try:
                         # Update activity timestamp
                         shell_last_activity[client_id] = time.time()
-                        
+
                         # Write directly to PTY master
                         os.write(master_fd, data.encode())
                     except Exception as e:
@@ -542,7 +542,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                     master_fd = active_pty_fds.pop(client_id, None)
                     if master_fd is not None:
                         await cleanup_pty(client_id, master_fd)
-                    
+
                     logger.info(f"Shell closed for {client_addr}")
 
                 await websocket.send(json.dumps({
@@ -577,10 +577,10 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
         master_fd = active_pty_fds.pop(client_id, None)
         if master_fd is not None:
             await cleanup_pty(client_id, master_fd)
-        
+
         # Reset shell count
         client_shell_counts.pop(client_id, None)
-        
+
         authenticated_clients.discard(client_id)
         command_history.pop(client_id, None)
         logger.info(f"Client disconnected: {client_addr}")
@@ -620,11 +620,11 @@ async def shell_timeout_monitor():
             for client_id, last_activity in list(shell_last_activity.items()):
                 if now - last_activity > SHELL_INACTIVE_TIMEOUT:
                     inactive_shells.append(client_id)
-            
+
             # Close inactive shells
             for client_id in inactive_shells:
                 logger.info(f"Closing inactive shell for client {client_id}")
-                
+
                 # Close shell and cleanup
                 shell_proc = active_shells.pop(client_id, None)
                 if shell_proc:
@@ -633,18 +633,18 @@ async def shell_timeout_monitor():
                         await shell_proc.wait()
                     except Exception:
                         pass
-                
+
                 master_fd = active_pty_fds.pop(client_id, None)
                 if master_fd is not None:
                     try:
                         os.close(master_fd)
                     except Exception:
                         pass
-                
+
                 # Reset counters (ensure non-negative)
                 if client_id in client_shell_counts:
                     client_shell_counts[client_id] = max(0, client_shell_counts[client_id] - 1)
-                
+
                 # Remove activity tracking
                 shell_last_activity.pop(client_id, None)
                     
@@ -673,12 +673,13 @@ async def main():
         logger.error("Example: export KALI_BRIDGE_AUTH_TOKEN='your-secure-random-token-here'")
         logger.error("Or create .env file with: KALI_BRIDGE_AUTH_TOKEN=your-secure-random-token")
         logger.error("=" * 60)
-        
+
         # Give user 10 seconds to think about it
         import signal
+
         def handler(signum, frame):
             logger.info("Continuing without authentication (NOT RECOMMENDED)...")
-        
+
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(10)
         logger.info("Press Ctrl+C to stop and set AUTH_TOKEN properly...")
