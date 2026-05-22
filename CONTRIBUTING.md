@@ -35,7 +35,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ```bash
 # Fork the repo on GitHub first, then:
-git clone https://github.com/YOUR_USERNAME/kali-remote-gui.git
+git clone https://github.com/notconnector/kali-remote-gui.git
 cd kali-remote-gui
 
 # Add upstream remote
