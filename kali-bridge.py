@@ -270,6 +270,7 @@ def validate_command(command: str, is_shell_mode: bool = False) -> Tuple[bool, s
 
     return True, ""
 
+
 async def run_command(
     command: str,
     timeout: int = 60,
@@ -449,7 +450,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                     active_pty_fds[client_id] = master_fd
                     client_shell_counts[client_id] += 1
                     shell_last_activity[client_id] = time.time()
-                    
+
                     # Close slave FD in parent process
                     os.close(slave_fd)
 
@@ -466,7 +467,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                                     )
                                     if not data:
                                         break
-                                    
+
                                     try:
                                         await websocket.send(json.dumps({
                                             "type": "shell_output",
@@ -537,7 +538,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                         pass
                     shell_proc = None
                     active_shells.pop(client_id, None)
-                    
+
                     # Close PTY with centralized cleanup
                     master_fd = active_pty_fds.pop(client_id, None)
                     if master_fd is not None:
@@ -572,7 +573,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
             except Exception:
                 pass
         active_shells.pop(client_id, None)
-        
+
         # Close PTY with centralized cleanup
         master_fd = active_pty_fds.pop(client_id, None)
         if master_fd is not None:
@@ -614,7 +615,7 @@ async def shell_timeout_monitor():
         try:
             await asyncio.sleep(300)  # Check every 5 minutes
             now = time.time()
-            
+
             # Create list of inactive shells to avoid modification during iteration
             inactive_shells = []
             for client_id, last_activity in list(shell_last_activity.items()):
@@ -647,7 +648,7 @@ async def shell_timeout_monitor():
 
                 # Remove activity tracking
                 shell_last_activity.pop(client_id, None)
-                    
+
         except Exception as e:
             logger.error(f"Shell timeout monitor error: {e}")
 
