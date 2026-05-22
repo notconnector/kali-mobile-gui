@@ -123,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - React Navigation with type-safe routing
 - Docker containerization for bridge deployment
 
-## [1.0.0] - 2024-XX-XX
+## [1.0.0] - 2026-05-20
 
 ### Added
 - Initial release of Kali Remote GUI
