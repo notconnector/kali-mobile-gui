@@ -61,6 +61,7 @@ jobs:
 
       - name: Build Release APK
         run: |
+          chmod +x android/gradlew
           cd android
           if [ -f app/my-release-key.keystore ]; then
             ./gradlew assembleRelease --no-daemon
