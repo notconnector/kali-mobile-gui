@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  bridge:
+    build:
+      context: ..
+      dockerfile: bridge/Dockerfile
+    container_name: kali-remote-bridge
+    restart: unless-stopped
+    
+    # Network configuration
+    # Option 1: Host networking (Linux only)
+    # network_mode: host
+    
+    # Option 2: Bridge networking with port mapping
+    ports:
+      - "127.0.0.1:8765:8765"  # WebSocket - localhost only for security
+      - "127.0.0.1:8766:8766"  # Health check
+    
+    environment:
+      # Bridge configuration
+      - KALI_BRIDGE_HOST=0.0.0.0
+      - KALI_BRIDGE_PORT=8765
+      - KALI_BRIDGE_RATE_LIMIT=30
+      - KALI_BRIDGE_LOG_LEVEL=INFO
+      - KALI_BRIDGE_MAX_PAYLOAD=1048576
+      # Set this for production!
+      - KALI_BRIDGE_AUTH_TOKEN=${KALI_BRIDGE_AUTH_TOKEN:-}
+    
+    # Mount volumes for tool access and logs
+    volumes:
+      # Mount Kali tools (if available)
+      - /usr/share:/usr/share:ro
+      # Mount logs
+      - ./logs:/var/log/bridge
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.connect(('127.0.0.1', 8766)); s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# Alternative: Use with external Kali container
+# Uncomment below to run alongside Kali Linux container
+#
+#   kali:
+#     image: kalilinux/kali-rolling
+#     container_name: kali-tools
+#     command: ["sleep", "infinity"]
+#     volumes:
+#       - kali-tools:/opt/tools
+#
+# volumes:
+#   kali-tools:

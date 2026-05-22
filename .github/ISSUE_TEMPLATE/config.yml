@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/notconnector/kali-remote-gui/security/advisories/new
+    about: Please report security vulnerabilities here.
+  - name: Question or Discussion
+    url: https://github.com/notconnector/kali-remote-gui/discussions
+    about: Ask questions and discuss ideas here.
+  - name: Documentation Issue
+    url: https://github.com/notconnector/kali-remote-gui/issues/new?template=docs.yml
+    about: Report issues with documentation.

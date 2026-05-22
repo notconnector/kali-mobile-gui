@@ -1,0 +1,125 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Decode Keystore
+        env:
+          ENCODED_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ENCODED_KEYSTORE" ]; then
+            echo "$ENCODED_KEYSTORE" | base64 -d > android/app/my-release-key.keystore
+            echo "RELEASE_STORE_FILE=my-release-key.keystore" >> android/local.properties
+            echo "RELEASE_STORE_PASSWORD=$KEYSTORE_PASSWORD" >> android/local.properties
+            echo "RELEASE_KEY_ALIAS=$KEY_ALIAS" >> android/local.properties
+            echo "RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> android/local.properties
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bundle JavaScript
+        run: |
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
+
+      - name: Build Release APK
+        run: |
+          cd android
+          if [ -f app/my-release-key.keystore ]; then
+            ./gradlew assembleRelease --no-daemon
+          else
+            ./gradlew assembleRelease --no-daemon -Punsigned
+          fi
+
+      - name: Rename APK
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "kali-remote-gui-v${VERSION}.apk"
+          else
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk "kali-remote-gui-v${VERSION}-unsigned.apk"
+          fi
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "## What's New in v$VERSION" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          # Get changes since last tag
+          git log $(git describe --tags --abbrev=0 HEAD~1)..HEAD --oneline --no-decorate | while read line; do
+            echo "- $line" >> $GITHUB_ENV
+          done
+          echo "" >> $GITHUB_ENV
+          echo "### Bridge" >> $GITHUB_ENV
+          echo "- Python WebSocket bridge with rate limiting" >> $GITHUB_ENV
+          echo "- Authentication token support" >> $GITHUB_ENV
+          echo "- Health check endpoint" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "### App" >> $GITHUB_ENV
+          echo "- React Native Android app" >> $GITHUB_ENV
+          echo "- 130+ Kali tools categorized" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "### Security" >> $GITHUB_ENV
+          echo "⚠️ See [SECURITY.md](SECURITY.md) before using!" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Kali Remote GUI v${{ steps.changelog.outputs.version }}"
+          body: ${{ env.CHANGELOG }}
+          files: |
+            kali-remote-gui-*.apk
+          draft: true
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+
+      - name: Build Docker Image
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          docker build -t ghcr.io/${{ github.repository }}:v${VERSION} -f bridge/Dockerfile .
+          docker tag ghcr.io/${{ github.repository }}:v${VERSION} ghcr.io/${{ github.repository }}:latest
+
+      - name: Push Docker Image
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          VERSION=${GITHUB_REF_NAME#v}
+          docker push ghcr.io/${{ github.repository }}:v${VERSION}
+          docker push ghcr.io/${{ github.repository }}:latest

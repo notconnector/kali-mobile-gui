@@ -1,0 +1,17 @@
+# Build outputs
+android/
+ios/
+node_modules/
+*.bundle
+
+# Logs
+*.log
+
+# Generated files
+coverage/
+.expo/
+
+# Assets
+*.png
+*.jpg
+*.gif
