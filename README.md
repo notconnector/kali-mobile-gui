@@ -12,6 +12,21 @@ Transform your Android device into a powerful remote terminal for Kali Linux. Ex
 
 ---
 
+## ⚠️ **SECURITY WARNING**
+
+<div style="border: 3px solid #dc3545; padding: 15px; margin: 20px 0; border-radius: 5px; background-color: #f8d7da;">
+  <strong style="color: #721c24; font-size: 18px;">🔒 CRITICAL: Full System Access</strong><br><br>
+  The <code>shell_start</code> mode provides <strong>unrestricted, full access</strong> to your Kali Linux system.<br><br>
+  <strong>⚠️ NEVER expose the bridge to public networks without proper security:</strong><br>
+  • Use <strong>Tailscale VPN</strong> or <strong>SSH tunneling</strong><br>
+  • Set a strong <strong>AUTH_TOKEN</strong> environment variable<br>
+  • Bind to <strong>localhost (127.0.0.1)</strong> only<br>
+  • Monitor logs for suspicious activity<br><br>
+  <em>Failure to secure the bridge properly can result in complete system compromise.</em>
+</div>
+
+---
+
 ## Quick Demo
 
 > Demo GIF coming soon — see [Screenshots](#screenshots) below for current UI

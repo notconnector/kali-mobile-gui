@@ -21,7 +21,7 @@ Security Notes:
     - Set AUTH_TOKEN for production use
     - Never expose to public internet without authentication
 
-Author: Kali Remote GUI Contributors
+Author: _.notconnector._
 License: MIT
 """
 
@@ -31,8 +31,11 @@ import os
 import sys
 import time
 import logging
+import shlex
+import re
+import pty
 from collections import defaultdict
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, List, Tuple
 
 try:
     import websockets
@@ -60,10 +63,86 @@ logger = logging.getLogger("kali-bridge")
 
 # Global state
 active_shells: Dict[int, asyncio.subprocess.Process] = {}
+active_pty_fds: Dict[int, int] = {}  # Track PTY master FDs
 authenticated_clients: Set[int] = set()
+client_shell_counts: Dict[int, int] = defaultdict(int)  # Track shell count per client
 
 # Rate limiting: track commands per client per minute
 command_history: defaultdict = defaultdict(list)  # client -> list of timestamps
+
+# Shell limits
+MAX_SHELLS_PER_CLIENT = 3
+
+# Command whitelist for security
+ALLOWED_COMMANDS: List[str] = [
+    # Recon tools
+    'nmap', 'ping', 'traceroute', 'dig', 'whois', 'nslookup', 'host', 'arp',
+    # Web tools
+    'curl', 'wget', 'nikto', 'gobuster', 'dirb', 'sqlmap',
+    # Network tools
+    'netcat', 'nc', 'tcpdump', 'tshark', 'netstat', 'ss', 'lsof',
+    # System tools
+    'ps', 'top', 'htop', 'df', 'du', 'free', 'uname', 'id', 'whoami', 'pwd', 'ls',
+    'cat', 'grep', 'find', 'which', 'whereis', 'file', 'strings', 'hexdump',
+    # Pentesting tools
+    'hydra', 'john', 'hashcat', 'aircrack-ng', 'metasploit', 'msfconsole',
+    'searchsploit', 'exploitdb', 'setoolkit',
+    # File operations (safe)
+    'head', 'tail', 'less', 'more', 'wc', 'sort', 'uniq', 'cut', 'awk', 'sed',
+    # Compression
+    'tar', 'gzip', 'gunzip', 'zip', 'unzip',
+    # Process management
+    'kill', 'killall', 'pkill', 'pgrep',
+]
+
+# Critical dangerous patterns (always blocked)
+CRITICAL_DANGEROUS_PATTERNS = [
+    r'rm\s+-rf\s+/',  # rm -rf / with variations
+    r'mkfs\.',       # Filesystem formatting
+    r'dd\s+if=/dev/(zero|random|null)',  # Disk destruction
+    r'shutdown\s+',  # System shutdown
+    r'reboot\s+',     # System reboot
+    r'halt\s+',      # System halt
+    r'poweroff\s+',  # Power off
+    r'passwd\s+',    # Password changes
+    r'chpasswd\s+',  # Password changes
+    r'user(add|del|mod)\s+',  # User management
+    r'chmod\s+777',  # Dangerous permissions
+    r'chown\s+root', # Ownership changes
+    r'mount\s+',     # Mount operations
+    r'umount\s+',    # Unmount operations
+    r'iptables\s+',  # Firewall changes
+    r'ufw\s+',       # Firewall changes
+    r'firewalld\s+', # Firewall changes
+    r'service\s+',   # Service management
+    r'systemctl\s+', # Systemd management
+    r'init\s+',      # Init system
+    r'crontab\s+',   # Cron management
+    r'at\s+',        # At scheduler
+    r'batch\s+',     # Batch scheduler
+    r'nohup\s+',     # Background processes
+    r'sudo\s+(su|-i|bash|sh)',  # Privilege escalation
+    r'nc\s+-l',      # Netcat listener
+    r'netcat\s+-l',  # Netcat listener
+    r'python\s+-c',  # Python code execution
+    r'perl\s+-e',    # Perl code execution
+    r'ruby\s+-e',    # Ruby code execution
+    r'eval\s+',      # Eval execution
+    r'exec\s+',      # Exec execution
+    r'\bsource\s+', # Source execution
+    r'\.$',          # Source execution
+    r'>>\s+/',       # Redirect to system files
+    r'>\s+/',        # Redirect to system files
+    r'<\s+/',        # Input from system files
+]
+
+# Suspicious patterns (warn in shell, block in exec)
+SUSPICIOUS_PATTERNS = [
+    r'&&\s+',        # Command chaining
+    r'\|\|\s+',      # Command chaining
+    r';\s+',         # Command chaining
+    r'\|\s+\w+',    # Pipe to command
+]
 
 
 def check_rate_limit(client_id: int) -> bool:
@@ -83,6 +162,19 @@ def check_rate_limit(client_id: int) -> bool:
     return True
 
 
+async def cleanup_pty(client_id: int, master_fd: int):
+    """Centralized PTY cleanup with proper error handling."""
+    try:
+        if client_id in active_pty_fds:
+            del active_pty_fds[client_id]
+        if client_id in client_shell_counts:
+            client_shell_counts[client_id] = max(0, client_shell_counts[client_id] - 1)
+        if master_fd is not None:
+            os.close(master_fd)
+    except Exception as e:
+        logger.error(f"PTY cleanup error: {e}")
+
+
 async def authenticate(websocket: WebSocketServerProtocol, message: dict) -> bool:
     """Authenticate client connection."""
     if not AUTH_TOKEN:
@@ -97,13 +189,66 @@ async def authenticate(websocket: WebSocketServerProtocol, message: dict) -> boo
     return False
 
 
+def validate_command(command: str, is_shell_mode: bool = False) -> Tuple[bool, str]:
+    """
+    Validate command against whitelist and dangerous patterns.
+    
+    Args:
+        command: Command to validate
+        is_shell_mode: True if running in interactive shell (allows more patterns)
+    
+    Returns:
+        Tuple of (is_safe, error_message)
+    """
+    command = command.strip()
+    if not command:
+        return False, "Empty command"
+    
+    # Check critical dangerous patterns (always blocked)
+    for pattern in CRITICAL_DANGEROUS_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return False, f"Critical dangerous pattern detected: {pattern}"
+    
+    # Check suspicious patterns (warn in shell, block in exec)
+    for pattern in SUSPICIOUS_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            if is_shell_mode:
+                logger.warning(f"Suspicious pattern in shell: {command[:100]} - {pattern}")
+                return True, ""  # Allow in shell with warning
+            else:
+                return False, f"Suspicious pattern not allowed in exec mode: {pattern}"
+    
+    # Parse command safely
+    try:
+        args = shlex.split(command)
+    except ValueError as e:
+        return False, f"Command parsing failed: {e}"
+    
+    if not args:
+        return False, "No command found"
+    
+    base_command = args[0]
+    
+    # Check if command is in whitelist
+    if base_command not in ALLOWED_COMMANDS:
+        return False, f"Command '{base_command}' not in allowed list"
+    
+    # Additional safety checks
+    if len(args) > 20:  # Reasonable argument limit
+        return False, "Too many arguments"
+    
+    if len(command) > 1000:  # Reasonable command length
+        return False, "Command too long"
+    
+    return True, ""
+
 async def run_command(
     command: str,
     timeout: int = 60,
     cwd: Optional[str] = None
 ) -> str:
     """
-    Execute a shell command with timeout and safety checks.
+    Execute a command securely with proper validation.
 
     Args:
         command: Command to execute
@@ -113,20 +258,24 @@ async def run_command(
     Returns:
         Command output as string
     """
-    # Safety: basic command validation
-    dangerous_patterns = ["rm -rf /", "mkfs.", "> /dev/sd", "dd if=/dev/zero"]
-    for pattern in dangerous_patterns:
-        if pattern in command:
-            logger.warning(f"Blocked dangerous command: {command[:50]}")
-            return "[BLOCKED] Potentially destructive command detected"
-
+    # Validate command
+    is_safe, error_msg = validate_command(command)
+    if not is_safe:
+        logger.warning(f"Blocked command: {command[:100]} - {error_msg}")
+        return f"[BLOCKED] {error_msg}"
+    
     try:
-        proc = await asyncio.create_subprocess_shell(
-            command,
+        # Parse command safely
+        args = shlex.split(command)
+        
+        # Execute without shell
+        proc = await asyncio.create_subprocess_exec(
+            *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             cwd=cwd,
             env={**os.environ, "TERM": "xterm", "FORCE_COLOR": "0"},
+            preexec_fn=os.setsid,
         )
 
         try:
@@ -139,7 +288,7 @@ async def run_command(
             return output
         except asyncio.TimeoutError:
             proc.kill()
-            logger.warning(f"Command timed out: {command[:50]}")
+            logger.warning(f"Command timed out: {command[:100]}")
             return f"[TIMEOUT] Command exceeded {timeout}s timeout"
 
     except Exception as e:
@@ -242,42 +391,87 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                         "output": ""
                     }))
                     continue
+                
+                # Check shell limit
+                if client_shell_counts[client_id] >= MAX_SHELLS_PER_CLIENT:
+                    await websocket.send(json.dumps({
+                        "id": msg_id,
+                        "type": "error",
+                        "message": f"Shell limit exceeded (max {MAX_SHELLS_PER_CLIENT} per client)"
+                    }))
+                    continue
 
-                logger.info(f"Starting shell for {client_addr}")
-                shell_proc = await asyncio.create_subprocess_shell(
-                    "/bin/bash",
-                    stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT,
-                    env={**os.environ, "TERM": "xterm-256color", "PS1": "\\w $ "},
-                )
-                active_shells[client_id] = shell_proc
-
-                async def read_shell():
-                    """Read shell output and stream to client."""
-                    while True:
+                logger.info(f"Starting PTY shell for {client_addr}")
+                
+                # Create PTY for proper terminal support
+                master_fd, slave_fd = pty.openpty()
+                
+                try:
+                    shell_proc = await asyncio.create_subprocess_exec(
+                        "/bin/bash",
+                        stdin=slave_fd,
+                        stdout=slave_fd,
+                        stderr=slave_fd,
+                        env={**os.environ, "TERM": "xterm-256color", "PS1": "\\w $ "},
+                        preexec_fn=os.setsid,
+                    )
+                    active_shells[client_id] = shell_proc
+                    active_pty_fds[client_id] = master_fd
+                    client_shell_counts[client_id] += 1
+                    
+                    # Close slave FD in parent process
+                    os.close(slave_fd)
+                    
+                    async def read_shell():
+                        """Read PTY output and stream to client."""
+                        loop = asyncio.get_event_loop()
+                        
                         try:
-                            data = await asyncio.wait_for(
-                                shell_proc.stdout.read(1024),
-                                timeout=0.1
-                            )
-                            if not data:
-                                break
-                            try:
-                                await websocket.send(json.dumps({
-                                    "type": "shell_output",
-                                    "data": data.decode("utf-8", errors="replace")
-                                }))
-                            except websockets.exceptions.ConnectionClosed:
-                                break
-                        except asyncio.TimeoutError:
-                            if shell_proc.returncode is not None:
-                                break
-                        except Exception as e:
-                            logger.error(f"Shell read error: {e}")
-                            break
+                            while True:
+                                try:
+                                    # Read from PTY without busy loop
+                                    data = await loop.run_in_executor(
+                                        None, lambda: os.read(master_fd, 1024)
+                                    )
+                                    if not data:
+                                        break
+                                    
+                                    try:
+                                        await websocket.send(json.dumps({
+                                            "type": "shell_output",
+                                            "data": data.decode("utf-8", errors="replace")
+                                        }))
+                                    except websockets.exceptions.ConnectionClosed:
+                                        break
+                                        
+                                    # Add small yield to prevent executor spam
+                                    await asyncio.sleep(0)
+                                        
+                                except OSError:
+                                    if shell_proc.returncode is not None:
+                                        break
+                                    continue
+                                except Exception as e:
+                                    logger.error(f"PTY read error: {e}")
+                                    break
+                                    
+                        finally:
+                            # Centralized PTY cleanup
+                            await cleanup_pty(client_id, master_fd)
 
-                asyncio.ensure_future(read_shell())
+                    asyncio.ensure_future(read_shell())
+                    
+                except Exception as e:
+                    # Cleanup on error
+                    try:
+                        os.close(master_fd)
+                    except Exception:
+                        pass
+                    try:
+                        os.close(slave_fd)
+                    except Exception:
+                        pass
+                    raise e
                 await websocket.send(json.dumps({
                     "id": msg_id,
                     "type": "shell_started",
@@ -286,12 +480,13 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
 
             elif msg_type == "shell_write":
                 data = msg.get("data", "")
-                if shell_proc and shell_proc.stdin and not shell_proc.returncode:
+                master_fd = active_pty_fds.get(client_id)
+                if master_fd is not None and data:
                     try:
-                        shell_proc.stdin.write(data.encode())
-                        await shell_proc.stdin.drain()
+                        # Write directly to PTY master
+                        os.write(master_fd, data.encode())
                     except Exception as e:
-                        logger.error(f"Shell write error: {e}")
+                        logger.error(f"PTY write error: {e}")
 
                 await websocket.send(json.dumps({
                     "id": msg_id,
@@ -308,6 +503,12 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                         pass
                     shell_proc = None
                     active_shells.pop(client_id, None)
+                    
+                    # Close PTY with centralized cleanup
+                    master_fd = active_pty_fds.pop(client_id, None)
+                    if master_fd is not None:
+                        await cleanup_pty(client_id, master_fd)
+                    
                     logger.info(f"Shell closed for {client_addr}")
 
                 await websocket.send(json.dumps({
@@ -337,6 +538,15 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
             except Exception:
                 pass
         active_shells.pop(client_id, None)
+        
+        # Close PTY with centralized cleanup
+        master_fd = active_pty_fds.pop(client_id, None)
+        if master_fd is not None:
+            await cleanup_pty(client_id, master_fd)
+        
+        # Reset shell count
+        client_shell_counts.pop(client_id, None)
+        
         authenticated_clients.discard(client_id)
         command_history.pop(client_id, None)
         logger.info(f"Client disconnected: {client_addr}")
