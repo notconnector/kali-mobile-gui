@@ -5,23 +5,89 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.0] - 2026-05-22
 
 ### Added
-- Enhanced security for bridge with rate limiting, authentication tokens, and payload size limits
-- Docker support for bridge deployment
-- Comprehensive documentation (README, SETUP, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY)
-- GitHub Actions CI/CD for automated builds and releases
-- Health check endpoint for monitoring
-- Dangerous command blocking (rm -rf /, mkfs, etc.)
-- Environment variable configuration support
+- **Tool Scanner**: Comprehensive pentesting tool detection and management
+  - Detects 80+ installed tools via `which` command
+  - One-click installation of missing tools via `apt-get`
+  - Add detected tools to Custom Tools library
+  - Filter by All/Installed/Missing status
+  - Real-time scan statistics
+- **TypeScript Migration**: Full codebase conversion to TypeScript
+  - Strong type definitions for hosts, commands, tools, and application state
+  - Improved IDE support and error detection
+  - Type-safe React Native components
+- **Multi-Host Support**: Manage multiple Kali Linux connections
+  - Add/edit/delete SSH host profiles
+  - Switch between different hosts
+  - Per-host connection history and settings
+- **File Browser Framework**: Foundation for remote file operations
+  - Directory listing and navigation
+  - File type detection (directory/file/link)
+  - Permission and ownership information
+- **Enhanced Documentation**: Professional project documentation
+  - Comprehensive README with architecture diagram
+  - Detailed SETUP.md with troubleshooting
+  - CONTRIBUTING.md with development guidelines
+  - CODE_OF_CONDUCT.md based on Contributor Covenant
+  - SECURITY.md with threat model and best practices
+- **CI/CD Pipeline**: Automated GitHub Actions workflows
+  - Android APK building and testing
+  - Docker image building for bridge
+  - Security scanning (CodeQL, dependency check)
+  - Automated releases with changelog generation
+- **Bridge Security Enhancements**: 
+  - Rate limiting (30 commands/minute per client)
+  - Authentication token support
+  - Dangerous command blocking
+  - Environment variable configuration
+  - Health check endpoint
+  - Docker deployment support
+
+### Changed
+- **Bridge Architecture**: Rewritten in Python with enhanced security
+  - WebSocket server with connection logging
+  - Rate limiting and authentication
+  - Configurable via environment variables
+  - Docker containerization support
+- **Navigation Structure**: Added Tool Scanner to Dashboard stack
+  - Quick access from Dashboard when connected
+  - Dedicated route in navigation hierarchy
+- **Connection Management**: Backward-compatible API migration
+  - Legacy `saveConfig()` and `sshConfig` support
+  - Seamless transition from single-host to multi-host
+- **Dependencies**: Updated to compatible versions
+  - TypeScript ESLint plugins aligned with React Native config
+  - Fixed npm dependency conflicts
+
+### Fixed
+- **Connection Issues**: Resolved SettingsScreen integration with new AppContext
+  - Fixed `saveConfig` undefined errors
+  - Corrected `connect()` parameter handling
+  - Updated test connection functionality
+- **TypeScript Errors**: Resolved compilation issues
+  - Fixed React namespace imports
+  - Corrected WebSocket event handler types
+  - Resolved implicit `any` type errors
+- **Build Issues**: Fixed CI/CD pipeline errors
+  - Updated ESLint configuration for TypeScript files
+  - Fixed flake8 warnings in Python bridge
+  - Resolved npm dependency conflicts
 
 ### Security
-- Bridge now defaults to localhost (127.0.0.1) binding for security
-- Added rate limiting: 30 commands per minute per client
-- Authentication token support
-- Security warnings when running with 0.0.0.0 or without auth
-- SECURITY.md with threat model and vulnerability reporting
+- Bridge defaults to localhost (127.0.0.1) binding
+- Authentication token enforcement warnings
+- Rate limiting prevents command flooding
+- Dangerous command pattern blocking
+- Security documentation and threat model
+
+### Technical
+- React Native 0.73 with TypeScript support
+- WebSocket communication via Python bridge
+- AsyncStorage for multi-host configuration persistence
+- React Navigation with type-safe routing
+- Docker containerization for bridge deployment
 
 ## [1.0.0] - 2024-XX-XX
 
