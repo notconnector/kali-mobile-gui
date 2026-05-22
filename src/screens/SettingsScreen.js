@@ -5,9 +5,13 @@ import {
 } from 'react-native';
 import {colors, fontSizes, spacing, radius} from '../theme';
 import {useApp} from '../context/AppContext';
+import {getTotalToolsCount} from '../data';
 
-export default function SettingsScreen() {
-  const {connect, disconnect, saveConfig, executeCommand, isConnected, isConnecting, connectionError, sshConfig} = useApp();
+const APP_VERSION = '1.3.0';
+const TOTAL_TOOLS = getTotalToolsCount();
+
+export default function SettingsScreen({navigation}) {
+  const {connect, disconnect, saveConfig, executeCommand, isConnected, isConnecting, connectionError, sshConfig, customTools} = useApp();
   const [host, setHost] = useState('');
   const [port, setPort] = useState('22');
   const [username, setUsername] = useState('');
@@ -215,9 +219,8 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ℹ️ ABOUT</Text>
           <View style={styles.infoCard}>
-            <InfoRow label="Version" value="1.0.0" />
-            <InfoRow label="Platform" value="Android" />
-            <InfoRow label="Tools" value="130+" valueColor={colors.primary} />
+            <InfoRow label="Version" value={`v${APP_VERSION}`} />
+            <InfoRow label="Tools" value={`${TOTAL_TOOLS + (customTools?.length || 0)}`} valueColor={colors.primary} />
             <InfoRow label="Categories" value="12" valueColor={colors.secondary} />
             <InfoRow label="Status" value={isConnected ? 'Connected' : 'Disconnected'} valueColor={isConnected ? colors.primary : colors.error} />
           </View>

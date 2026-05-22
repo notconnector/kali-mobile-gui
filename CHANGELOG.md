@@ -14,6 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add detected tools to Custom Tools library
   - Filter by All/Installed/Missing status
   - Real-time scan statistics
+- **Settings About Section**: Simple information table
+  - Version display (v1.3.0)
+  - Exact tool count (110 built-in + custom)
+  - Categories count (12)
+  - Connection status indicator
+- **Splash Screen Enhancements**: Loading status with tool counting
+  - Real-time tool counting during app startup
+  - Version display on splash screen
+  - Connection status indicators
+- **Dashboard Improvements**: Dynamic tool count display
+  - Exact tool count instead of hardcoded "130+"
+  - Category header with tool count
+  - About button with version and tool count (removed)
+- **Settings Integration**: About section as table
+  - Settings → About table with key information
+  - Dynamic tool count including custom tools
+  - No navigation to separate About screen
 - **TypeScript Migration**: Full codebase conversion to TypeScript
   - Strong type definitions for hosts, commands, tools, and application state
   - Improved IDE support and error detection
@@ -81,6 +98,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rate limiting prevents command flooding
 - Dangerous command pattern blocking
 - Security documentation and threat model
+
+### Fixed
+- **CI/CD Pipeline Issues**: Resolved GitHub Actions build failures
+  - Fixed missing `android/app/src/main/assets/` directory creation
+  - Added Linux `gradlew` wrapper script for Ubuntu runners
+  - Fixed npm dependency conflicts with TypeScript ESLint versions
+  - Resolved ESLint prettier/prettier compatibility with Prettier 3.x
+- **Connection Issues**: Resolved SettingsScreen integration with new AppContext
+  - Fixed `saveConfig` undefined errors
+  - Corrected `connect()` parameter handling
+  - Updated test connection functionality
+- **TypeScript Errors**: Resolved compilation issues
+  - Fixed React namespace imports
+  - Corrected WebSocket event handler types
+  - Resolved implicit `any` type errors
+  - Fixed no-shadow variable conflicts
+  - Resolved React hooks exhaustive-deps warnings
 
 ### Technical
 - React Native 0.73 with TypeScript support

@@ -8,10 +8,13 @@ import {colors, fontSizes, spacing, radius, gradients} from '../theme';
 import {useApp} from '../context/AppContext';
 import ConnectionBadge from '../components/ConnectionBadge';
 import CategoryCard from '../components/CategoryCard';
-import {CATEGORIES, searchAllTools} from '../data';
+import {CATEGORIES, searchAllTools, getTotalToolsCount} from '../data';
+
+const TOTAL_TOOLS = getTotalToolsCount();
+const APP_VERSION = '1.3.0';
 
 export default function DashboardScreen({navigation}) {
-  const {isConnected, history, connect, disconnect} = useApp();
+  const {isConnected, history, connect, disconnect, customTools} = useApp();
   const [search, setSearch] = useState('');
 
   const filteredCategories = search.trim()
@@ -87,11 +90,22 @@ export default function DashboardScreen({navigation}) {
                 <Text style={[styles.statValue, {color: colors.primary}]}>●</Text>
                 <Text style={styles.statLabel}>Connected</Text>
               </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>130+</Text>
-                <Text style={styles.statLabel}>Tools</Text>
-              </View>
+              <TouchableOpacity style={styles.statCard} onPress={() => navigation.navigate('About')} activeOpacity={0.7}>
+                <Text style={styles.statValue}>{TOTAL_TOOLS + customTools.length}</Text>
+                <Text style={styles.statLabel}>Tools ›</Text>
+              </TouchableOpacity>
             </View>
+            <TouchableOpacity
+              style={styles.aboutBtn}
+              onPress={() => navigation.navigate('About')}
+              activeOpacity={0.8}>
+              <Text style={styles.scannerBtnIcon}>ℹ️</Text>
+              <View style={styles.scannerBtnTextWrap}>
+                <Text style={styles.scannerBtnTitle}>About · v{APP_VERSION}</Text>
+                <Text style={styles.scannerBtnSub}>{TOTAL_TOOLS + customTools.length} tools · MIT License</Text>
+              </View>
+              <Text style={styles.scannerBtnArrow}>›</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.scannerBtn}
               onPress={() => navigation.navigate('ToolScanner')}
@@ -140,7 +154,9 @@ export default function DashboardScreen({navigation}) {
           <>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>TOOL CATEGORIES</Text>
-              <Text style={styles.sectionCount}>{CATEGORIES.length} categories</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('About')} activeOpacity={0.7}>
+                <Text style={styles.sectionCount}>{TOTAL_TOOLS + customTools.length} tools · {CATEGORIES.length} categories</Text>
+              </TouchableOpacity>
             </View>
             {CATEGORIES.map(category => (
               <CategoryCard
@@ -275,6 +291,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
     gap: spacing.sm,
+  },
+  aboutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primary + '44',
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   scannerBtn: {
     flexDirection: 'row',

@@ -103,3 +103,15 @@ export function getDefaultFlagValues(tool) {
 }
 
 export {CATEGORIES} from './categories';
+
+export function getTotalToolsCount() {
+  return Object.values(ALL_TOOLS).reduce((sum, tools) => sum + tools.length, 0);
+}
+
+export function getToolsCountByCategory() {
+  const result = {};
+  Object.entries(ALL_TOOLS).forEach(([cat, tools]) => {
+    result[cat] = tools.length;
+  });
+  return result;
+}
