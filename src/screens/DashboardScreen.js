@@ -77,20 +77,33 @@ export default function DashboardScreen({navigation}) {
         )}
 
         {isConnected && (
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{history.length}</Text>
-              <Text style={styles.statLabel}>Executed</Text>
+          <>
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{history.length}</Text>
+                <Text style={styles.statLabel}>Executed</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={[styles.statValue, {color: colors.primary}]}>●</Text>
+                <Text style={styles.statLabel}>Connected</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>130+</Text>
+                <Text style={styles.statLabel}>Tools</Text>
+              </View>
             </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, {color: colors.primary}]}>●</Text>
-              <Text style={styles.statLabel}>Connected</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>130+</Text>
-              <Text style={styles.statLabel}>Tools</Text>
-            </View>
-          </View>
+            <TouchableOpacity
+              style={styles.scannerBtn}
+              onPress={() => navigation.navigate('ToolScanner')}
+              activeOpacity={0.8}>
+              <Text style={styles.scannerBtnIcon}>🔍</Text>
+              <View style={styles.scannerBtnTextWrap}>
+                <Text style={styles.scannerBtnTitle}>Tool Scanner</Text>
+                <Text style={styles.scannerBtnSub}>Detect installed tools · Install missing</Text>
+              </View>
+              <Text style={styles.scannerBtnArrow}>›</Text>
+            </TouchableOpacity>
+          </>
         )}
 
         {search.trim() ? (
@@ -263,6 +276,23 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     gap: spacing.sm,
   },
+  scannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  scannerBtnIcon: { fontSize: 24 },
+  scannerBtnTextWrap: { flex: 1 },
+  scannerBtnTitle: { color: colors.text, fontSize: fontSizes.md, fontWeight: '700' },
+  scannerBtnSub: { color: colors.textDim, fontSize: fontSizes.xs, marginTop: 2 },
+  scannerBtnArrow: { color: colors.primary, fontSize: 24, marginLeft: 'auto' },
   statCard: {
     flex: 1,
     backgroundColor: colors.card,

@@ -4,6 +4,7 @@ import React, {
   useReducer,
   useEffect,
   useCallback,
+  useMemo,
   ReactNode,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +15,7 @@ import type {
   AppAction,
   AppContextValue,
   SSHHost,
+  SSHConfig,
   CustomTool,
   CommandEntry,
   FileEntry,
@@ -171,14 +173,44 @@ export function AppProvider({ children }: AppProviderProps) {
   };
 
   const connect = useCallback(
-    async (hostId?: string): Promise<boolean> => {
-      const targetHostId = hostId || state.currentHostId;
-      if (!targetHostId) {
-        dispatch({ type: 'SET_ERROR', payload: 'No host selected' });
-        return false;
+    async (hostIdOrConfig?: string | SSHConfig): Promise<boolean> => {
+      let host: SSHHost | undefined;
+      let targetHostId: string | null = null;
+
+      // Legacy: config object passed directly
+      if (hostIdOrConfig && typeof hostIdOrConfig === 'object') {
+        const cfg = hostIdOrConfig;
+        const existing = state.hosts.find(h => h.host === cfg.host && h.port === cfg.port);
+        if (existing) {
+          host = existing;
+          targetHostId = existing.id;
+        } else {
+          const newHost: SSHHost = {
+            id: `host_${Date.now()}`,
+            name: cfg.host,
+            host: cfg.host,
+            port: cfg.port || 22,
+            wsPort: cfg.wsPort || 8765,
+            username: cfg.username,
+            password: cfg.password,
+            authToken: cfg.authToken,
+            isDefault: state.hosts.length === 0,
+          };
+          const updatedHosts = [...state.hosts, newHost];
+          dispatch({ type: 'ADD_HOST', payload: newHost });
+          await saveHosts(updatedHosts);
+          host = newHost;
+          targetHostId = newHost.id;
+        }
+      } else {
+        targetHostId = (hostIdOrConfig as string) || state.currentHostId;
+        if (!targetHostId) {
+          dispatch({ type: 'SET_ERROR', payload: 'No host selected' });
+          return false;
+        }
+        host = state.hosts.find((h: SSHHost) => h.id === targetHostId);
       }
 
-      const host = state.hosts.find(h => h.id === targetHostId);
       if (!host) {
         dispatch({ type: 'SET_ERROR', payload: 'Host not found' });
         return false;
@@ -229,7 +261,7 @@ export function AppProvider({ children }: AppProviderProps) {
         dispatch({ type: 'SET_ACTIVE_COMMAND', payload: null });
 
         if (output) {
-          output.split('\n').forEach(line => {
+          output.split('\n').forEach((line: string) => {
             dispatch({
               type: 'ADD_TERMINAL_LINE',
               payload: { text: line, type: 'output', ts: Date.now() },
@@ -342,7 +374,7 @@ export function AppProvider({ children }: AppProviderProps) {
     const output = await SSHManager.execute(command);
 
     const files: FileEntry[] = [];
-    const lines = output.split('\n').filter(line => line.trim() && !line.startsWith('total'));
+    const lines = output.split('\n').filter((line: string) => line.trim() && !line.startsWith('total'));
 
     for (const line of lines) {
       const parts = line.split(/\s+/);
@@ -388,6 +420,48 @@ export function AppProvider({ children }: AppProviderProps) {
     throw new Error('File download not implemented yet');
   }, []);
 
+  // Legacy compatibility helpers
+  const sshConfig: SSHConfig | null = useMemo(() => {
+    const h = state.hosts.find((h: SSHHost) => h.id === state.currentHostId);
+    if (!h) return null;
+    return {
+      host: h.host,
+      port: h.port,
+      wsPort: h.wsPort,
+      username: h.username,
+      password: h.password,
+      authToken: h.authToken,
+    };
+  }, [state.hosts, state.currentHostId]);
+
+  const saveConfig = useCallback(
+    async (config: SSHConfig): Promise<void> => {
+      const existing = state.hosts.find((h: SSHHost) => h.host === config.host);
+      if (existing) {
+        const updated: SSHHost = {
+          ...existing,
+          port: config.port || existing.port,
+          wsPort: config.wsPort || existing.wsPort,
+          username: config.username || existing.username,
+          password: config.password,
+          authToken: config.authToken,
+        };
+        await updateHost(updated);
+      } else {
+        await addHost({
+          name: config.host,
+          host: config.host,
+          port: config.port || 22,
+          wsPort: config.wsPort || 8765,
+          username: config.username,
+          password: config.password,
+          authToken: config.authToken,
+        });
+      }
+    },
+    [state.hosts, addHost, updateHost]
+  );
+
   const value: AppContextValue = {
     ...state,
     connect,
@@ -404,6 +478,8 @@ export function AppProvider({ children }: AppProviderProps) {
     changeDirectory,
     uploadFile,
     downloadFile,
+    saveConfig,
+    sshConfig,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

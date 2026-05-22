@@ -18,6 +18,7 @@ import AddToolScreen from './src/screens/AddToolScreen';
 import TerminalScreen from './src/screens/TerminalScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ToolScannerScreen from './src/screens/ToolScannerScreen';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -32,6 +33,7 @@ function DashboardStack() {
       <DashStack.Screen name="Tool" component={ToolScreen} />
       <DashStack.Screen name="ToolDetail" component={ToolDetailScreen} />
       <DashStack.Screen name="AddTool" component={AddToolScreen} />
+      <DashStack.Screen name="ToolScanner" component={ToolScannerScreen} />
     </DashStack.Navigator>
   );
 }

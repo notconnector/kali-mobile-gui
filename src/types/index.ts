@@ -118,7 +118,7 @@ export type AppAction =
   | { type: 'SET_CURRENT_PATH'; payload: string };
 
 export interface AppContextValue extends AppState {
-  connect: (hostId?: string) => Promise<boolean>;
+  connect: (hostIdOrConfig?: string | SSHConfig) => Promise<boolean>;
   disconnect: () => Promise<void>;
   executeCommand: (command: string, toolName?: string) => Promise<string>;
   addHost: (host: Omit<SSHHost, 'id'>) => Promise<SSHHost>;
@@ -132,4 +132,7 @@ export interface AppContextValue extends AppState {
   changeDirectory: (path: string) => Promise<void>;
   uploadFile: (localPath: string, remotePath: string) => Promise<void>;
   downloadFile: (remotePath: string, localPath: string) => Promise<void>;
+  // Legacy compatibility
+  saveConfig: (config: SSHConfig) => Promise<void>;
+  sshConfig: SSHConfig | null;
 }

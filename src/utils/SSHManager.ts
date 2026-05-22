@@ -133,7 +133,7 @@ class SSHManager {
         }
       };
 
-      this.ws.onerror = (e: Event) => {
+      this.ws.onerror = (_e: Event) => {
         if (!settled) {
           settled = true;
           reject(new Error(`WebSocket error: Cannot connect to ${url}`));
@@ -154,7 +154,7 @@ class SSHManager {
         this.pendingResolvers.clear();
       };
 
-      this.ws.onmessage = (evt: MessageEvent) => {
+      this.ws.onmessage = (evt: any) => {
         try {
           const msg: WebSocketMessage = JSON.parse(evt.data);
 
@@ -238,7 +238,7 @@ class SSHManager {
   closeShell(): Promise<void> {
     if (!this.isShellOpen) return Promise.resolve();
     this.isShellOpen = false;
-    return this.send({ type: 'shell_close' }).catch(() => undefined);
+    return this.send({ type: 'shell_close' }).then(() => undefined).catch(() => undefined);
   }
 
   ping(): Promise<string> {

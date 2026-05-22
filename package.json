@@ -25,17 +25,17 @@
     "android": "react-native run-android",
     "start": "react-native start",
     "test": "jest",
-    "lint": "eslint src/ --ext .js,.jsx",
-    "lint:fix": "eslint src/ --ext .js,.jsx --fix",
-    "format": "prettier --write 'src/**/*.{js,jsx,json,css,md}'",
-    "format:check": "prettier --check 'src/**/*.{js,jsx,json,css,md}'",
+    "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint src/ --ext .js,.jsx,.ts,.tsx --fix",
+    "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,json,css,md}'",
+    "format:check": "prettier --check 'src/**/*.{js,jsx,ts,tsx,json,css,md}'",
     "bundle:android": "react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res",
     "build:android": "cd android && ./gradlew assembleRelease",
     "clean:android": "cd android && ./gradlew clean",
     "prepare": "husky install"
   },
   "lint-staged": {
-    "*.{js,jsx}": [
+    "*.{js,jsx,ts,tsx}": [
       "eslint --fix",
       "prettier --write"
     ]
@@ -64,6 +64,8 @@
     "@react-native/typescript-config": "0.73.1",
     "@types/react": "18.2.0",
     "@types/react-native": "0.73.0",
+    "@typescript-eslint/eslint-plugin": "7.0.0",
+    "@typescript-eslint/parser": "7.0.0",
     "babel-jest": "29.7.0",
     "eslint": "8.57.0",
     "husky": "9.0.11",

@@ -5,10 +5,9 @@ import {
 } from 'react-native';
 import {colors, fontSizes, spacing, radius} from '../theme';
 import {useApp} from '../context/AppContext';
-import SSHManager from '../utils/SSHManager';
 
 export default function SettingsScreen() {
-  const {connect, disconnect, saveConfig, isConnected, isConnecting, connectionError, sshConfig} = useApp();
+  const {connect, disconnect, saveConfig, executeCommand, isConnected, isConnecting, connectionError, sshConfig} = useApp();
   const [host, setHost] = useState('');
   const [port, setPort] = useState('22');
   const [username, setUsername] = useState('');
@@ -66,8 +65,9 @@ export default function SettingsScreen() {
     }
     setTestResult({status: 'testing', message: 'Testing connection...'});
     try {
-      await SSHManager.connect(buildConfig());
-      const output = await SSHManager.execute('echo "OK:$(uname -n):$(whoami)"');
+      const ok = await connect(buildConfig());
+      if (!ok) throw new Error('Connection failed');
+      const output = await executeCommand('echo "OK:$(uname -n):$(whoami)"');
       setTestResult({status: 'ok', message: `✓ Connected! ${output.trim()}`});
     } catch (e) {
       setTestResult({status: 'error', message: `✗ ${e.message}`});

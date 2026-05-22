@@ -28,7 +28,6 @@ License: MIT
 import asyncio
 import json
 import os
-import subprocess
 import sys
 import time
 import logging
@@ -119,7 +118,7 @@ async def run_command(
     for pattern in dangerous_patterns:
         if pattern in command:
             logger.warning(f"Blocked dangerous command: {command[:50]}")
-            return f"[BLOCKED] Potentially destructive command detected"
+            return "[BLOCKED] Potentially destructive command detected"
 
     try:
         proc = await asyncio.create_subprocess_shell(
