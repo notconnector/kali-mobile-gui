@@ -126,6 +126,27 @@ function Step2({command, helpOutput, name, setName, desc, setDesc, icon, setIcon
 }
 
 function FlagEditor({flag, onChange, onDelete}) {
+  const FLAG_TYPES = [
+    {value: 'text', label: '📝 Text', desc: 'User types value'},
+    {value: 'toggle', label: '🔘 Toggle', desc: 'On/Off switch'},
+    {value: 'select', label: '📋 Select', desc: 'Choose from options'},
+  ];
+
+  const addOption = () => {
+    const newOption = {value: `opt_${Date.now()}`, label: 'New option'};
+    onChange({...flag, options: [...(flag.options || []), newOption]});
+  };
+
+  const updateOption = (idx, field, value) => {
+    const newOptions = [...(flag.options || [])];
+    newOptions[idx] = {...newOptions[idx], [field]: value};
+    onChange({...flag, options: newOptions});
+  };
+
+  const deleteOption = (idx) => {
+    onChange({...flag, options: (flag.options || []).filter((_, i) => i !== idx)});
+  };
+
   return (
     <View style={styles.flagCard}>
       <View style={styles.flagHeader}>
@@ -134,18 +155,81 @@ function FlagEditor({flag, onChange, onDelete}) {
           <Text style={styles.deleteBtn}>✕</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Flag name */}
       <TextInput style={styles.inputSm} value={flag.name} onChangeText={v => onChange({...flag, name: v})}
         placeholder="flag  e.g. --port" placeholderTextColor={colors.textMuted} autoCapitalize="none" />
+
+      {/* Flag type selector */}
+      <View style={styles.typeSelector}>
+        <Text style={styles.fieldLabelSm}>Flag type:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeScroll}>
+          {FLAG_TYPES.map(type => (
+            <TouchableOpacity
+              key={type.value}
+              style={[styles.typeBtn, flag.type === type.value && styles.typeBtnActive]}
+              onPress={() => onChange({...flag, type: type.value})}>
+              <Text style={styles.typeBtnText}>{type.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        <Text style={styles.typeDesc}>
+          {FLAG_TYPES.find(t => t.value === flag.type)?.desc || 'Select how user will set this flag'}
+        </Text>
+      </View>
+
+      {/* Flag description */}
       <TextInput style={styles.inputSm} value={flag.description} onChangeText={v => onChange({...flag, description: v})}
         placeholder="description" placeholderTextColor={colors.textMuted} />
-      <TextInput style={styles.inputSm} value={flag.placeholder} onChangeText={v => onChange({...flag, placeholder: v})}
-        placeholder="placeholder  e.g. 8080" placeholderTextColor={colors.textMuted} autoCapitalize="none" />
+
+      {/* Type-specific fields */}
+      {flag.type === 'text' && (
+        <TextInput style={styles.inputSm} value={flag.placeholder} onChangeText={v => onChange({...flag, placeholder: v})}
+          placeholder="placeholder  e.g. 8080" placeholderTextColor={colors.textMuted} autoCapitalize="none" />
+      )}
+
+      {flag.type === 'toggle' && (
+        <View style={styles.toggleInfo}>
+          <Text style={styles.toggleInfoText}>User can enable/disable this flag with a switch</Text>
+        </View>
+      )}
+
+      {flag.type === 'select' && (
+        <View style={styles.selectSection}>
+          <Text style={styles.fieldLabelSm}>Options:</Text>
+          {(flag.options || []).map((option, idx) => (
+            <View key={option.value} style={styles.optionRow}>
+              <TextInput
+                style={[styles.inputSm, {flex: 1}]}
+                value={option.label}
+                onChangeText={v => updateOption(idx, 'label', v)}
+                placeholder="Option label"
+                placeholderTextColor={colors.textMuted}
+              />
+              <TextInput
+                style={[styles.inputSm, {flex: 1, marginLeft: spacing.xs}]}
+                value={option.value}
+                onChangeText={v => updateOption(idx, 'value', v)}
+                placeholder="Value"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity onPress={() => deleteOption(idx)} style={styles.deleteOptionBtn}>
+                <Text style={styles.deleteOptionBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addOptionBtn} onPress={addOption}>
+            <Text style={styles.addOptionBtnText}>+ Add option</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
 
 function Step3({flags, setFlags, onSave, onBack, saving}) {
-  const addFlag = () => setFlags(prev => [...prev, {id: `f_${Date.now()}`, name: '', description: '', placeholder: '', default: '', required: false}]);
+  const addFlag = () => setFlags(prev => [...prev, {id: `f_${Date.now()}`, name: '', description: '', placeholder: '', default: '', required: false, type: 'text'}]);
   const updateFlag = (idx, updated) => setFlags(prev => prev.map((f, i) => i === idx ? updated : f));
   const deleteFlag = idx => setFlags(prev => prev.filter((_, i) => i !== idx));
 
@@ -397,4 +481,48 @@ const styles = StyleSheet.create({
     borderColor: colors.secondary + '40',
   },
   addFlagBtnText: {color: colors.secondary, fontSize: fontSizes.sm, fontWeight: '700'},
+  // Flag type selector styles
+  typeSelector: {gap: spacing.xs},
+  fieldLabelSm: {color: colors.textDim, fontSize: fontSizes.xs, fontWeight: '600', marginBottom: spacing.xs},
+  typeScroll: {marginBottom: spacing.xs},
+  typeBtn: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginRight: spacing.xs,
+  },
+  typeBtnActive: {borderColor: colors.primary, backgroundColor: colors.primary + '15'},
+  typeBtnText: {color: colors.text, fontSize: fontSizes.xs, fontWeight: '600'},
+  typeDesc: {color: colors.textDim, fontSize: fontSizes.xs, fontStyle: 'italic'},
+  // Toggle info
+  toggleInfo: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  toggleInfoText: {color: colors.textDim, fontSize: fontSizes.xs},
+  // Select options
+  selectSection: {gap: spacing.xs},
+  optionRow: {flexDirection: 'row', alignItems: 'center', gap: spacing.xs},
+  deleteOptionBtn: {
+    width: 24, height: 24,
+    borderRadius: radius.sm,
+    backgroundColor: colors.error + '15',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  deleteOptionBtnText: {color: colors.error, fontSize: fontSizes.xs, fontWeight: '700'},
+  addOptionBtn: {
+    backgroundColor: colors.primary + '15',
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+  },
+  addOptionBtnText: {color: colors.primary, fontSize: fontSizes.xs, fontWeight: '700'},
 });

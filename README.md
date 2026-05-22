@@ -76,6 +76,7 @@ adb install kali-remote-gui-v1.3.0.apk
 - **Command History** — Searchable history with favorites
 - **Multi-Session Support** — Save and switch between multiple Kali hosts
 - **File Browser** — Browse remote filesystem (Coming soon)
+- **Custom Tools** — Add your own tools with configurable flags (text, toggle, select)
 - **Dark/Light Themes** — Customizable UI with hacker aesthetic
 - **Offline Mode** — Tool reference without connection
 
