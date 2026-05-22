@@ -21,6 +21,7 @@ export default function SplashScreen({navigation}) {
       try { await connect(); } catch (_) {}
       setTimeout(() => navigation.replace('Main'), 400);
     }, 2400);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

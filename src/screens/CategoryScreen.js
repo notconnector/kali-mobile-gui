@@ -11,14 +11,13 @@ import {useApp} from '../context/AppContext';
 export default function CategoryScreen({route, navigation}) {
   const {category} = route.params;
   const {customTools, deleteCustomTool} = useApp();
+  const [search, setSearch] = useState('');
 
   // Special handling for library category
   if (category.id === 'library') {
     navigation.replace('ToolsLibrary', {category});
     return null;
   }
-
-  const [search, setSearch] = useState('');
   const isCustom = category.id === 'custom';
   const allTools = isCustom ? customTools : getToolsByCategory(category.id);
   const tools = search.trim()

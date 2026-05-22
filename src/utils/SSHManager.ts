@@ -148,8 +148,8 @@ class SSHManager {
         this.emit('disconnected');
 
         // Reject all pending requests
-        this.pendingResolvers.forEach(({ reject }) => {
-          reject(new Error('Connection closed'));
+        this.pendingResolvers.forEach(({ reject: rejectPending }) => {
+          rejectPending(new Error('Connection closed'));
         });
         this.pendingResolvers.clear();
       };

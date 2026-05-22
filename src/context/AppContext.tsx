@@ -305,6 +305,7 @@ export function AppProvider({ children }: AppProviderProps) {
 
       return newHost;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [state.hosts]
   );
 
@@ -422,21 +423,21 @@ export function AppProvider({ children }: AppProviderProps) {
 
   // Legacy compatibility helpers
   const sshConfig: SSHConfig | null = useMemo(() => {
-    const h = state.hosts.find((h: SSHHost) => h.id === state.currentHostId);
-    if (!h) return null;
+    const currentHost = state.hosts.find((host: SSHHost) => host.id === state.currentHostId);
+    if (!currentHost) return null;
     return {
-      host: h.host,
-      port: h.port,
-      wsPort: h.wsPort,
-      username: h.username,
-      password: h.password,
-      authToken: h.authToken,
+      host: currentHost.host,
+      port: currentHost.port,
+      wsPort: currentHost.wsPort,
+      username: currentHost.username,
+      password: currentHost.password,
+      authToken: currentHost.authToken,
     };
   }, [state.hosts, state.currentHostId]);
 
   const saveConfig = useCallback(
     async (config: SSHConfig): Promise<void> => {
-      const existing = state.hosts.find((h: SSHHost) => h.host === config.host);
+      const existing = state.hosts.find((existingHost: SSHHost) => existingHost.host === config.host);
       if (existing) {
         const updated: SSHHost = {
           ...existing,

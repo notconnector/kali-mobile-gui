@@ -29,6 +29,7 @@ export default function AIAssistantScreen({navigation}) {
 
   useEffect(() => {
     initializeAI();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
