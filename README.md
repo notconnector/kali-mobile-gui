@@ -159,19 +159,19 @@ See [SECURITY.md](SECURITY.md) for detailed security guidelines and threat model
 
 ## Roadmap
 
-### Q2 2024
+### Q2 2026
 - [ ] TypeScript migration
 - [ ] SSH key authentication support
 - [ ] TLS/WSS encryption
 - [ ] Docker containerization for bridge
 
-### Q3 2024
+### Q3 2026
 - [ ] File browser with upload/download
 - [ ] Command templates with parameters
 - [ ] Session persistence
 - [ ] Multi-host management
 
-### Q4 2024
+### Q4 2026
 - [ ] Background service for long-running tasks
 - [ ] Push notifications for completed scans
 - [ ] Tool auto-discovery on host
