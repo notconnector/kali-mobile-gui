@@ -66,12 +66,16 @@ active_shells: Dict[int, asyncio.subprocess.Process] = {}
 active_pty_fds: Dict[int, int] = {}  # Track PTY master FDs
 authenticated_clients: Set[int] = set()
 client_shell_counts: Dict[int, int] = defaultdict(int)  # Track shell count per client
+shell_last_activity: Dict[int, float] = defaultdict(float)  # Track shell activity
 
 # Rate limiting: track commands per client per minute
 command_history: defaultdict = defaultdict(list)  # client -> list of timestamps
 
 # Shell limits
 MAX_SHELLS_PER_CLIENT = 3
+SHELL_INACTIVE_TIMEOUT = 3600  # 60 minutes in seconds
+# Note: rbash provides limited restrictions. For stronger isolation, consider firejail
+RESTRICTED_SHELL_COMMAND = '/bin/rbash'  # Restricted shell (partial protection)
 
 # Command whitelist for security
 ALLOWED_COMMANDS: List[str] = [
@@ -144,6 +148,24 @@ SUSPICIOUS_PATTERNS = [
     r'\|\s+\w+',    # Pipe to command
 ]
 
+# Critical blacklist (never allowed, even in shell)
+CRITICAL_BLACKLIST = [
+    r'rm\s+-rf\s+/',          # rm -rf / and variations
+    r'dd\s+if=/dev/(zero|random|null)\s+of=/dev/sd',  # Disk destruction
+    r'mkfs\.(\w+)',          # Filesystem formatting
+    r'fdisk\s+/dev/sd',       # Disk partitioning
+    r'parted\s+/dev/sd',      # Disk partitioning
+    r'format\s+',            # Disk formatting
+    r'shutdown\s+-h\s+now',  # Immediate shutdown
+    r'reboot\s+-f',          # Force reboot
+    r'halt\s+-f',            # Force halt
+    r'poweroff\s+-f',        # Force poweroff
+    r'init\s+0',             # Shutdown to runlevel 0
+    r'kill\s+-9\s+1',       # Kill init process
+    r'>\s+/dev/sd',          # Direct write to disk
+    r'echo\s+.*>\s+/dev/sd', # Echo to disk
+]
+
 
 def check_rate_limit(client_id: int) -> bool:
     """Check if client has exceeded rate limit. Returns True if allowed."""
@@ -203,6 +225,12 @@ def validate_command(command: str, is_shell_mode: bool = False) -> Tuple[bool, s
     command = command.strip()
     if not command:
         return False, "Empty command"
+    
+    # Check critical blacklist (never allowed, even in shell)
+    for pattern in CRITICAL_BLACKLIST:
+        if re.search(pattern, command, re.IGNORECASE):
+            logger.critical(f"CRITICAL: Blacklisted command blocked: {command[:100]} - {pattern}")
+            return False, f"CRITICAL: Absolutely forbidden command: {pattern}"
     
     # Check critical dangerous patterns (always blocked)
     for pattern in CRITICAL_DANGEROUS_PATTERNS:
@@ -383,7 +411,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                     "output": output
                 }))
 
-            elif msg_type == "shell_start":
+            elif msg_type == "shell_start" or msg_type == "shell_start_restricted":
                 if shell_proc and shell_proc.returncode is None:
                     await websocket.send(json.dumps({
                         "id": msg_id,
@@ -401,14 +429,16 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                     }))
                     continue
 
-                logger.info(f"Starting PTY shell for {client_addr}")
+                is_restricted = msg_type == "shell_start_restricted"
+                shell_cmd = RESTRICTED_SHELL_COMMAND if is_restricted else "/bin/bash"
+                logger.info(f"Starting {'restricted' if is_restricted else 'full'} PTY shell for {client_addr}")
                 
                 # Create PTY for proper terminal support
                 master_fd, slave_fd = pty.openpty()
                 
                 try:
                     shell_proc = await asyncio.create_subprocess_exec(
-                        "/bin/bash",
+                        shell_cmd,
                         stdin=slave_fd,
                         stdout=slave_fd,
                         stderr=slave_fd,
@@ -418,6 +448,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                     active_shells[client_id] = shell_proc
                     active_pty_fds[client_id] = master_fd
                     client_shell_counts[client_id] += 1
+                    shell_last_activity[client_id] = time.time()
                     
                     # Close slave FD in parent process
                     os.close(slave_fd)
@@ -483,6 +514,9 @@ async def handler(websocket: WebSocketServerProtocol, path: str = ""):
                 master_fd = active_pty_fds.get(client_id)
                 if master_fd is not None and data:
                     try:
+                        # Update activity timestamp
+                        shell_last_activity[client_id] = time.time()
+                        
                         # Write directly to PTY master
                         os.write(master_fd, data.encode())
                     except Exception as e:
@@ -574,6 +608,50 @@ async def health_check_server():
         await server.serve_forever()
 
 
+async def shell_timeout_monitor():
+    """Monitor inactive shells and close them."""
+    while True:
+        try:
+            await asyncio.sleep(300)  # Check every 5 minutes
+            now = time.time()
+            
+            # Create list of inactive shells to avoid modification during iteration
+            inactive_shells = []
+            for client_id, last_activity in list(shell_last_activity.items()):
+                if now - last_activity > SHELL_INACTIVE_TIMEOUT:
+                    inactive_shells.append(client_id)
+            
+            # Close inactive shells
+            for client_id in inactive_shells:
+                logger.info(f"Closing inactive shell for client {client_id}")
+                
+                # Close shell and cleanup
+                shell_proc = active_shells.pop(client_id, None)
+                if shell_proc:
+                    try:
+                        shell_proc.kill()
+                        await shell_proc.wait()
+                    except Exception:
+                        pass
+                
+                master_fd = active_pty_fds.pop(client_id, None)
+                if master_fd is not None:
+                    try:
+                        os.close(master_fd)
+                    except Exception:
+                        pass
+                
+                # Reset counters (ensure non-negative)
+                if client_id in client_shell_counts:
+                    client_shell_counts[client_id] = max(0, client_shell_counts[client_id] - 1)
+                
+                # Remove activity tracking
+                shell_last_activity.pop(client_id, None)
+                    
+        except Exception as e:
+            logger.error(f"Shell timeout monitor error: {e}")
+
+
 async def main():
     """Main entry point."""
     # Security warnings
@@ -586,13 +664,32 @@ async def main():
         logger.warning("=" * 60)
 
     if not AUTH_TOKEN:
-        logger.warning("=" * 60)
-        logger.warning("WARNING: No authentication token configured!")
-        logger.warning("Set KALI_BRIDGE_AUTH_TOKEN for production use.")
-        logger.warning("Anyone with network access can execute commands.")
-        logger.warning("=" * 60)
+        logger.error("=" * 60)
+        logger.error("🚨 CRITICAL: No authentication token configured!")
+        logger.error("Set KALI_BRIDGE_AUTH_TOKEN environment variable.")
+        logger.error("Without AUTH_TOKEN, anyone with network access can execute commands.")
+        logger.error("This is EXTREMELY DANGEROUS and should NEVER be used in production.")
+        logger.error("=" * 60)
+        logger.error("Example: export KALI_BRIDGE_AUTH_TOKEN='your-secure-random-token-here'")
+        logger.error("Or create .env file with: KALI_BRIDGE_AUTH_TOKEN=your-secure-random-token")
+        logger.error("=" * 60)
+        
+        # Give user 10 seconds to think about it
+        import signal
+        def handler(signum, frame):
+            logger.info("Continuing without authentication (NOT RECOMMENDED)...")
+        
+        signal.signal(signal.SIGALRM, handler)
+        signal.alarm(10)
+        logger.info("Press Ctrl+C to stop and set AUTH_TOKEN properly...")
+        try:
+            time.sleep(10)
+        except KeyboardInterrupt:
+            logger.info("Stopped. Please set AUTH_TOKEN and restart.")
+            sys.exit(1)
+        signal.alarm(0)
     else:
-        logger.info("Authentication enabled")
+        logger.info("✅ Authentication enabled")
 
     logger.info(f"Kali Remote GUI Bridge starting on ws://{HOST}:{PORT}")
     logger.info(f"Rate limit: {RATE_LIMIT} commands/minute per client")
@@ -609,8 +706,9 @@ async def main():
         max_size=MAX_PAYLOAD,
         compression=None  # Disable compression for security
     ):
-        # Also start health check in background
+        # Also start health check and timeout monitor in background
         health_task = asyncio.create_task(health_check_server())
+        timeout_task = asyncio.create_task(shell_timeout_monitor())
 
         try:
             await asyncio.Future()  # Run forever
@@ -618,8 +716,10 @@ async def main():
             logger.info("Shutting down...")
         finally:
             health_task.cancel()
+            timeout_task.cancel()
             try:
                 await health_task
+                await timeout_task
             except asyncio.CancelledError:
                 pass
 

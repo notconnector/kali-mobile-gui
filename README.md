@@ -4,7 +4,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![React Native](https://img.shields.io/badge/React_Native-0.73-blue)](https://reactnative.dev/)
-[![Security](https://img.shields.io/badge/Security-Audit_Required-red)](#security-warning)
+[![Security](https://img.shields.io/badge/Security-Hardened-green)](#security-warning)
+[![Version](https://img.shields.io/badge/Version-1.3.0-blue)](https://github.com/notconnector/kali-remote-gui/releases)
+[![Last Updated](https://img.shields.io/badge/Updated-2026--05--22-brightgreen)](CHANGELOG.md)
 
 Transform your Android device into a powerful remote terminal for Kali Linux. Execute 130+ penetration testing tools, monitor real-time output, and manage multiple sessions — all through an intuitive mobile interface.
 
@@ -27,6 +29,35 @@ Transform your Android device into a powerful remote terminal for Kali Linux. Ex
 
 ---
 
+## 🚀 Quick Start
+
+**Get Kali Remote GUI running in 5 commands:**
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/notconnector/kali-remote-gui.git
+cd kali-remote-gui
+
+# 2. Run installer (handles everything)
+chmod +x install.sh
+./install.sh
+
+# 3. Start the bridge
+./kali-bridge-launcher.sh
+
+# 4. Install APK on Android
+adb install kali-remote-gui-v1.3.0.apk
+
+# 5. Connect app
+# Host: 127.0.0.1
+# Port: 8765  
+# Auth Token: [from .env file]
+```
+
+**That's it!** You now have full remote control of Kali tools from your Android device.
+
+---
+
 ## Quick Demo
 
 > Demo GIF coming soon — see [Screenshots](#screenshots) below for current UI
@@ -44,7 +75,7 @@ Transform your Android device into a powerful remote terminal for Kali Linux. Ex
 - **Live Terminal** — Interactive shell with real-time output streaming via PTY
 - **Command History** — Searchable history with favorites
 - **Multi-Session Support** — Save and switch between multiple Kali hosts
-- **File Browser** — Browse remote filesystem (WIP)
+- **File Browser** — Browse remote filesystem (Coming soon)
 - **Dark/Light Themes** — Customizable UI with hacker aesthetic
 - **Offline Mode** — Tool reference without connection
 
@@ -93,33 +124,6 @@ Transform your Android device into a powerful remote terminal for Kali Linux. Ex
 - SSH server (for optional SSH tunneling)
 
 ---
-
-## Quick Start
-
-```bash
-# 1. Clone repository
-git clone https://github.com/notconnector/kali-remote-gui.git
-cd kali-remote-gui
-
-# 2. Install dependencies
-npm install
-
-# 3. Build release APK
-npx react-native bundle --platform android --dev false \
-  --entry-file index.js \
-  --bundle-output android/app/src/main/assets/index.android.bundle \
-  --assets-dest android/app/src/main/res
-cd android && ./gradlew assembleRelease
-
-# 4. Install on device
-adb install -r app/build/outputs/apk/release/app-release.apk
-```
-
-**On Kali Linux host:**
-```bash
-pip3 install websockets
-python3 kali-bridge.py
-```
 
 See [SETUP.md](SETUP.md) for detailed instructions including Docker deployment, SSH key authentication, and security hardening.
 
