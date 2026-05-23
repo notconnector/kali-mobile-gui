@@ -18,3 +18,5 @@ yarn-debug.*
 yarn-error.*
 .env
 .env.local
+*.apk
+*.log
